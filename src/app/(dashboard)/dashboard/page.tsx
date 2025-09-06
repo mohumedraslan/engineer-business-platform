@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, Briefcase, Users, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Briefcase, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { Project, Interview, ProjectInterest, DashboardStats } from '@/lib/types';
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -15,10 +16,10 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   // Fetch data specific to the user's role
-  let projects: any[] = [];
-  let interviews: any[] = [];
-  let projectInterests: any[] = [];
-  let stats: any = {};
+  let projects: Project[] = [];
+  let interviews: Interview[] = [];
+  let projectInterests: ProjectInterest[] = [];
+  let stats: Partial<DashboardStats> = {};
 
   if (user.role === 'business_owner') {
     // Fetch business owner's projects
@@ -120,7 +121,7 @@ export default async function DashboardPage() {
             Welcome back, {user.profile?.full_name || user.email}!
           </h1>
           <p className="text-gray-600 mt-2">
-            Here's what's happening with your {user.role === 'business_owner' ? 'projects' : 'opportunities'} today.
+            Here&apos;s what&apos;s happening with your {user.role === 'business_owner' ? 'projects' : 'opportunities'} today.
           </p>
         </div>
 
@@ -191,7 +192,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">{stats.totalInterests}</div>
-                  <p className="text-xs text-gray-500 mt-1">Projects you're interested in</p>
+                  <p className="text-xs text-gray-500 mt-1">Projects you&apos;re interested in</p>
                 </CardContent>
               </Card>
               
@@ -255,16 +256,16 @@ export default async function DashboardPage() {
                   <div key={interview.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">
-                        {interview.projects?.title || 'Project'}
+                        {interview.project?.title || 'Project'}
                       </h4>
                       <p className="text-sm text-gray-600">
                         {user.role === 'engineer' 
-                          ? `with ${interview.profiles?.owner_id?.full_name || 'Business Owner'}`
-                          : `with ${interview.profiles?.engineer_id?.full_name || 'Engineer'}`
+                          ? `with ${interview.owner?.full_name || 'Business Owner'}`
+                          : `with ${interview.engineer?.full_name || 'Engineer'}`
                         }
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(interview.scheduled_time)} at {new Date(interview.scheduled_time).toLocaleTimeString()}
+                        {interview.scheduled_time ? `${formatDate(interview.scheduled_time)} at ${new Date(interview.scheduled_time).toLocaleTimeString()}` : 'Not scheduled'}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -286,7 +287,7 @@ export default async function DashboardPage() {
               <div className="text-center py-8 text-gray-500">
                 <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg">No upcoming interviews</p>
-                <p className="text-sm">You're all caught up!</p>
+                <p className="text-sm">You&apos;re all caught up!</p>
               </div>
             )}
             <div className="mt-4">

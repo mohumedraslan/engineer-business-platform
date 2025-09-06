@@ -36,16 +36,27 @@ export interface Project {
 }
 
 export interface Interview {
-  id: string
-  project_id: string
-  engineer_id: string
-  owner_id: string
-  scheduled_time: string | null
-  meeting_link: string | null
-  status: InterviewStatus
-  project?: Project // Joined data
-  engineer?: Profile // Joined data
-  owner?: Profile // Joined data
+  id: string;
+  project_id: string;
+  engineer_id: string;
+  owner_id: string;
+  scheduled_time: string;  // Changed from string | null since we're only displaying scheduled interviews
+  meeting_link: string | null;
+  status: InterviewStatus;
+  project?: Project;
+  engineer?: Profile;
+  owner?: Profile;
+  projects?: {
+    title: string;
+  };
+  profiles?: {
+    engineer_id?: {
+      full_name: string;
+    };
+    owner_id?: {
+      full_name: string;
+    };
+  };
 }
 
 export interface MatchedEngineer {
@@ -130,9 +141,28 @@ export interface NavItem {
 
 // Dashboard stats
 export interface DashboardStats {
-  totalProjects: number
-  totalEngineers: number
-  totalBusinessOwners: number
-  pendingApprovals: number
-  activeInterviews: number
+  totalProjects?: number;
+  activeProjects?: number;
+  pendingInterests?: number;
+  upcomingInterviews?: number;
+  totalInterests?: number;
+  acceptedInterests?: number;
+  totalEngineers?: number;
+  totalBusinessOwners?: number;
+  pendingApprovals?: number;
+  activeInterviews?: number;
+}
+
+export interface ProjectInterest {
+  id: string;
+  project_id: string;
+  engineer_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  projects?: {
+    title: string;
+    description: string;
+    required_skills: string[];
+  };
+  profiles?: Profile;
 }
