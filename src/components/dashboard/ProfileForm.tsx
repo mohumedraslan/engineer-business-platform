@@ -7,7 +7,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { profileSchema } from '@/lib/validators';
 import { updateProfile } from '@/app/actions';
-import { UserProfile } from '@/lib/types';
+import { Profile } from '@/lib/types';
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
@@ -15,27 +15,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-interface ProfileFormProps { user: UserProfile; }
+interface ProfileFormProps { user: Profile; }
+
+export type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<z.infer<typeof profileSchema>>({
+  const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: user.full_name || "",
+      full_name: user.full_name || "",
       headline: user.headline || "",
       bio: user.bio || "",
-      skills: Array.isArray(user.skills) ? (user.skills as string[]).join(', ') : "",
+      skills: user.skills || [],
       portfolio_url: user.portfolio_url || "",
       company_name: user.company_name || "",
     },
   });
 
-  const onSubmit = (values: z.infer<typeof profileSchema>) => {
+  const onSubmit = (values: ProfileFormData) => {
     startTransition(async () => {
-      const result = await updateProfile(values);
+      const result = await updateProfile(user.id, values);
       if ((result as any).error) {
         toast.error((result as any).error);
       } else {
@@ -57,7 +59,7 @@ export default function ProfileForm({ user }: ProfileFormProps) {
         </div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField control={form.control} name="fullName" render={({ field }) => (
+            <FormField control={form.control} name="full_name" render={({ field }) => (
               <FormItem>
                 <FormLabel>Full Name</FormLabel>
                 <FormControl><Input placeholder="Your full name" {...field} /></FormControl>
@@ -83,7 +85,16 @@ export default function ProfileForm({ user }: ProfileFormProps) {
                 <FormField control={form.control} name="skills" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Skills</FormLabel>
-                    <FormControl><Input placeholder="React, Node.js, Python, AI" {...field} /></FormControl>
+                    <FormControl>
+                      <Input 
+                        placeholder="React, Node.js, Python, AI" 
+                        value={field.value?.join(', ') || ''} 
+                        onChange={(e) => {
+                          const skills = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                          field.onChange(skills);
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

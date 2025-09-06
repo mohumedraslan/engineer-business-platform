@@ -5,9 +5,19 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { expressInterest, checkInterest } from '@/app/actions';
 
-export default function ExpressInterestButton({ projectId, engineerId }: { projectId: string; engineerId: string; }) {
+interface ExpressInterestButtonProps {
+  projectId: string;
+  engineerId: string;
+  hasExpressedInterest?: boolean;
+}
+
+export default function ExpressInterestButton({ 
+  projectId, 
+  engineerId, 
+  hasExpressedInterest: initialExpressedInterest = false 
+}: ExpressInterestButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [hasExpressedInterest, setHasExpressedInterest] = useState(false);
+  const [hasExpressedInterest, setHasExpressedInterest] = useState(initialExpressedInterest);
 
   useEffect(() => {
     const run = async () => {

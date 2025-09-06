@@ -6,6 +6,21 @@ import Link from 'next/link';
 import ProjectSearch from '@/components/dashboard/ProjectSearch';
 import { Briefcase, Building, Clock } from 'lucide-react';
 
+interface ProjectOwner {
+  full_name: string;
+  company_name?: string;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  required_skills: string[];
+  created_at: string;
+  owner: ProjectOwner;
+  status: string;
+}
+
 export default async function ProjectsPage({ 
   searchParams 
 }: { 
@@ -33,7 +48,7 @@ export default async function ProjectsPage({
     queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
   }
 
-  const { data: projects, error } = await queryBuilder;
+  const { data: projects, error } = await queryBuilder as { data: Project[] | null; error: any };
 
   if (error) {
     return (
@@ -80,7 +95,7 @@ export default async function ProjectsPage({
             <ProjectSearch />
             {query && (
               <p className="text-sm text-gray-600">
-                Showing results for: <span className="font-medium">"{query}"</span>
+                Showing results for: <span className="font-medium">&ldquo;{query}&rdquo;</span>
               </p>
             )}
           </div>
@@ -88,7 +103,7 @@ export default async function ProjectsPage({
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects && projects.length > 0 ? (
-            projects.map((project) => (
+            projects.map((project: Project) => (
               <Link href={`/projects/${project.id}`} key={project.id} className="block">
                 <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer group">
                   <CardHeader className="pb-3">
