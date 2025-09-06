@@ -10,8 +10,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Utility to filter out browser-added attributes that cause hydration mismatches
-export function filterHydrationProps(props: Record<string, any>) {
-  const { fdprocessedid, ...filteredProps } = props
+export function filterHydrationProps(props: Record<string, unknown>) {
+  const { fdprocessedid: _, ...filteredProps } = props
   return filteredProps
 }
 
@@ -73,7 +73,7 @@ export function isValidUrl(string: string): boolean {
   try {
     new URL(string)
     return true
-  } catch (_) {
+  } catch {
     return false
   }
 }
@@ -84,7 +84,7 @@ export function generateTempId(): string {
 }
 
 // Debounce function for search inputs
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

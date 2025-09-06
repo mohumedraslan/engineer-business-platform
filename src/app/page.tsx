@@ -1,7 +1,7 @@
 // src/app/page.tsx
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function HomePage() {
   return (
@@ -97,7 +97,7 @@ export default function HomePage() {
           </p>
           <Link href="/register">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-4">
-              Join Now - It's Free
+              Join Now - It&apos;s Free
             </Button>
           </Link>
         </div>

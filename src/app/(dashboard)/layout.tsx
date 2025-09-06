@@ -4,7 +4,11 @@ import { redirect } from 'next/navigation';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import NotificationBell from '@/components/dashboard/NotificationBell';
+import dynamic from 'next/dynamic';
+
+const NotificationComponent = dynamic(() => import('@/components/dashboard/NotificationComponent'), {
+  ssr: false,
+});
 
 export default async function DashboardLayout({
   children,
@@ -63,7 +67,7 @@ export default async function DashboardLayout({
               </div>
               
               <div className="flex items-center space-x-4">
-                <NotificationBell />
+                <NotificationComponent />
                 <span className="text-sm text-gray-600">
                   Welcome, {user.profile?.full_name || user.email}
                 </span>

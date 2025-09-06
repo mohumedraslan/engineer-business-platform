@@ -52,12 +52,11 @@ export default function ScheduleInterviewForm({
   const onSubmit = (values: ScheduleInterviewFormData) => {
     startTransition(async () => {
       const result = await scheduleInterview({
-        project_id: projectId,
-        engineer_id: engineerId,
-        owner_id: ownerId,
-        meeting_link: values.meetingLink,
-        scheduled_time: new Date(values.scheduledTime).toISOString(),
-        status: 'scheduled'
+        projectId,
+        engineerId,
+        ownerId,
+        meetingLink: values.meetingLink,
+        scheduledTime: new Date(values.scheduledTime)
       });
 
       if (result?.error) {

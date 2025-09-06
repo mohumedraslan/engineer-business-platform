@@ -3,7 +3,7 @@
 
 import { create } from 'zustand'
 import { createClient } from './supabase/client'
-import type { Profile, AuthUser, Session } from './types'
+import type { Profile, AuthUser } from './types'
 
 interface AuthState {
   user: AuthUser | null

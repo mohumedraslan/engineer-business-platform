@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/app/actions';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Profile } from '@/lib/types';
 import AdminApprovalButtons from '@/components/dashboard/AdminApprovalButtons';
 import ScheduleVettingInterview from '@/components/dashboard/ScheduleVettingInterview';
 
@@ -88,7 +88,7 @@ export default async function AdminPage() {
                 <p className="text-lg">No engineers are awaiting approval</p>
               </div>
             ) : (
-              pendingEngineers.map((engineer) => (
+              pendingEngineers.map((engineer: Profile) => (
                 <div 
                   key={engineer.id} 
                   className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-sm transition-shadow"
@@ -104,7 +104,7 @@ export default async function AdminPage() {
                       </div>
                       <div className="text-right text-xs text-gray-400">
                         <p>Registered</p>
-                        <p>{new Date(engineer.created_at).toLocaleDateString()}</p>
+                        <p>{engineer.created_at ? new Date(engineer.created_at).toLocaleDateString() : 'Unknown date'}</p>
                       </div>
                     </div>
                   </div>

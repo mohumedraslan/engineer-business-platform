@@ -20,7 +20,7 @@ export default function ProjectSearch() {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
     
     if (term.trim()) {
       params.set('query', term.trim());
@@ -33,7 +33,7 @@ export default function ProjectSearch() {
 
   const clearSearch = () => {
     setSearchTerm('');
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete('query');
     replace(`${pathname}?${params.toString()}`);
   };
@@ -76,7 +76,7 @@ export default function ProjectSearch() {
         <div className="mt-2 text-sm text-gray-600">
           <span className="flex items-center">
             <Filter className="h-3 w-3 mr-1" />
-            Filtering by: <span className="font-medium ml-1">"{searchTerm}"</span>
+            Filtering by: <span className="font-medium ml-1">&ldquo;{searchTerm}&rdquo;</span>
           </span>
         </div>
       )}
