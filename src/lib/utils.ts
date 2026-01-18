@@ -1,5 +1,5 @@
 // src/lib/utils.ts
-// Utility functions for the Engineer-Business Platform
+// Utility functions for the rabt Platform
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"

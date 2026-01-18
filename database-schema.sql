@@ -12,30 +12,40 @@ CREATE TYPE public.interest_status AS ENUM ('pending', 'accepted', 'rejected');
 -- 2. PROFILES TABLE (linked to Supabase Auth users)
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT,
-  full_name TEXT,
+  email TEXT NOT NULL,
+  full_name TEXT NOT NULL,
   role public.user_role NOT NULL,
   status public.profile_status DEFAULT 'pending_approval',
   -- Engineer-specific fields
   headline TEXT,
   bio TEXT,
-  skills JSONB, -- e.g., ["React", "Node.js", "AI"]
-  portfolio_url TEXT,
-  resume_url TEXT, -- Will link to Supabase Storage
+  skills JSONB DEFAULT '[]'::jsonb, -- e.g., ["React", "Node.js", "AI"]
+  portfolio_url TEXT CHECK (portfolio_url ~ '^https?://'),
+  resume_url TEXT CHECK (resume_url ~ '^https?://'), -- Will link to Supabase Storage
   -- Business Owner-specific fields
   company_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  -- Constraints
+  CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+  CONSTRAINT valid_role CHECK (role IN ('engineer', 'business_owner', 'admin')),
+  UNIQUE(email)
 );
 
 -- 3. PROJECTS TABLE
 CREATE TABLE public.projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  required_skills JSONB NOT NULL,
+  title TEXT NOT NULL CHECK (length(title) >= 5 AND length(title) <= 200),
+  description TEXT NOT NULL CHECK (length(description) >= 50 AND length(description) <= 2000),
+  required_skills JSONB NOT NULL DEFAULT '[]'::jsonb,
   status public.project_status DEFAULT 'open',
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  -- Constraints
+  CONSTRAINT valid_project_status CHECK (status IN ('open', 'matching', 'in_progress', 'closed')),
+  CONSTRAINT valid_skills_array CHECK (jsonb_typeof(required_skills) = 'array'),
+  CONSTRAINT non_empty_skills CHECK (jsonb_array_length(required_skills) > 0)
 );
 
 -- 4. PROJECT INTERESTS TABLE
@@ -45,7 +55,13 @@ CREATE TABLE public.project_interests (
   engineer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   status public.interest_status DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(project_id, engineer_id)
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(project_id, engineer_id),
+  -- Constraints
+  CONSTRAINT valid_interest_status CHECK (status IN ('pending', 'accepted', 'rejected')),
+  CONSTRAINT no_self_interest CHECK (engineer_id != (
+    SELECT owner_id FROM public.projects WHERE id = project_id
+  ))
 );
 
 -- 5. INTERVIEWS TABLE
@@ -54,19 +70,34 @@ CREATE TABLE public.interviews (
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   engineer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  scheduled_time TIMESTAMPTZ,
-  meeting_link TEXT, -- Business owner will paste a Google Meet/Jitsi link here
-  status public.interview_status DEFAULT 'scheduled'
+  scheduled_time TIMESTAMPTZ NOT NULL,
+  duration_minutes INTEGER DEFAULT 60,
+  status public.interview_status DEFAULT 'scheduled',
+  meeting_link TEXT CHECK (meeting_link ~ '^https?://'),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(project_id, engineer_id, scheduled_time),
+  -- Constraints
+  CONSTRAINT valid_interview_status CHECK (status IN ('scheduled', 'completed', 'cancelled', 'pending_vetting')),
+  CONSTRAINT valid_duration CHECK (duration_minutes >= 15 AND duration_minutes <= 240),
+  CONSTRAINT future_scheduled_time CHECK (scheduled_time > now()),
+  CONSTRAINT valid_meeting_link CHECK (meeting_link IS NULL OR meeting_link ~ '^https?://'),
+  CONSTRAINT engineer_owner_different CHECK (engineer_id != owner_id)
 );
 
 -- 6. NOTIFICATIONS TABLE
 CREATE TABLE public.notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  message TEXT NOT NULL,
-  link TEXT, -- Optional link to the relevant page (e.g., a project)
+  title TEXT NOT NULL CHECK (length(title) >= 5 AND length(title) <= 100),
+  message TEXT NOT NULL CHECK (length(message) >= 10 AND length(message) <= 500),
+  type TEXT NOT NULL CHECK (type IN ('info', 'warning', 'success', 'error', 'match', 'interview')),
   is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  -- Constraints
+  CONSTRAINT valid_notification_type CHECK (type IN ('info', 'warning', 'success', 'error', 'match', 'interview'))
 );
 
 -- 7. ROW LEVEL SECURITY (RLS) - CRITICAL FOR PRIVACY
@@ -100,13 +131,31 @@ CREATE POLICY "Admins can see all interviews" ON public.interviews FOR SELECT US
 CREATE POLICY "Users can manage their own notifications" ON public.notifications FOR ALL USING (auth.uid() = user_id);
 
 -- 8. INDEXES for better performance
+-- Profiles indexes
 CREATE INDEX idx_profiles_role_status ON public.profiles(role, status);
+CREATE INDEX idx_profiles_email ON public.profiles(email) WHERE email IS NOT NULL;
+CREATE INDEX idx_profiles_created_at ON public.profiles(created_at DESC);
+
+-- Projects indexes
 CREATE INDEX idx_projects_owner_id ON public.projects(owner_id);
 CREATE INDEX idx_projects_status ON public.projects(status);
+CREATE INDEX idx_projects_created_at ON public.projects(created_at DESC);
+CREATE INDEX idx_projects_title ON public.projects(title);
+
+-- Project interests indexes
 CREATE INDEX idx_project_interests_project_id ON public.project_interests(project_id);
 CREATE INDEX idx_project_interests_engineer_id ON public.project_interests(engineer_id);
+CREATE INDEX idx_project_interests_status ON public.project_interests(status);
+CREATE INDEX idx_project_interests_created_at ON public.project_interests(created_at DESC);
+
+-- Interviews indexes
 CREATE INDEX idx_interviews_engineer_id ON public.interviews(engineer_id);
 CREATE INDEX idx_interviews_owner_id ON public.interviews(owner_id);
+CREATE INDEX idx_interviews_project_id ON public.interviews(project_id);
+CREATE INDEX idx_interviews_status ON public.interviews(status);
+CREATE INDEX idx_interviews_scheduled_time ON public.interviews(scheduled_time);
+
+-- Notifications indexes
 CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON public.notifications(is_read);
 CREATE INDEX idx_notifications_created_at ON public.notifications(created_at DESC);

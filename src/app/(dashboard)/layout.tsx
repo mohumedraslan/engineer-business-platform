@@ -28,7 +28,7 @@ export default async function DashboardLayout({
           <div className="container flex h-16 items-center">
             <div className="mr-4 flex items-center space-x-8">
               <Link href="/dashboard" className="flex items-center space-x-2">
-                <span className="font-bold inline-block">Engineer-Business Platform</span>
+                <span className="font-bold inline-block">rabt Platform</span>
               </Link>
               
               <nav className="hidden md:flex items-center space-x-6">

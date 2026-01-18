@@ -1,5 +1,5 @@
 // src/lib/validators.ts
-// Zod validation schemas for the Engineer-Business Platform
+// Zod validation schemas for the rabt Platform
 
 import { z } from 'zod'
 

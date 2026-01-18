@@ -1,5 +1,5 @@
 // src/lib/types.ts
-// TypeScript types and interfaces for the Engineer-Business Platform
+// TypeScript types and interfaces for the rabt Platform
 
 export type UserRole = 'engineer' | 'business_owner' | 'admin'
 export type ProfileStatus = 'pending_approval' | 'approved' | 'rejected'

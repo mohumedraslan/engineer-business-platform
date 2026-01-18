@@ -1,511 +1,440 @@
-// src/app/(dashboard)/dashboard/page.tsx
-import { getCurrentUser } from '@/app/actions';
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, Briefcase, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
-import { Project, Interview, ProjectInterest, DashboardStats } from '@/lib/types';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { AnimatedButton } from '@/components/ui/animated-button';
+import { 
+  Calendar, 
+  Briefcase, 
+  Users, 
+  TrendingUp, 
+  Clock, 
+  CheckCircle, 
+  Plus,
+  Eye,
+  Search,
+  Settings,
+  BarChart3,
+  Target,
+  Zap,
+  Star,
+  ArrowRight,
+  Bell,
+  Activity,
+  DollarSign,
+  Award,
+  Code2,
+  Building2,
+  MessageSquare,
+  FileText
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-export default async function DashboardPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect('/login');
+// Mock data for demonstration - in production this would come from your API
+const mockUser = {
+  name: "Alex Johnson",
+  role: "engineer" as const, // or "business_owner"
+  avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
+};
 
-  const supabase = await createClient();
+const mockStats = {
+  engineer: {
+    totalProjects: 12,
+    activeProjects: 3,
+    completedProjects: 9,
+    earnings: 45000,
+    rating: 4.9,
+    reviews: 127,
+    pendingApplications: 5,
+    upcomingInterviews: 2
+  },
+  business_owner: {
+    totalProjects: 8,
+    activeProjects: 2,
+    pendingApplications: 15,
+    totalSpent: 85000,
+    avgRating: 4.7,
+    completedHires: 6,
+    upcomingInterviews: 3
+  }
+};
 
-  // Fetch data specific to the user's role
-  let projects: Project[] = [];
-  let interviews: Interview[] = [];
-  let projectInterests: ProjectInterest[] = [];
-  let stats: Partial<DashboardStats> = {};
+const mockRecentActivity = [
+  { id: 1, type: "project_applied", title: "Applied to E-commerce Platform", time: "2 hours ago", status: "pending" },
+  { id: 2, type: "interview_scheduled", title: "Interview with TechCorp", time: "1 day ago", status: "scheduled" },
+  { id: 3, type: "project_completed", title: "Mobile App Development", time: "3 days ago", status: "completed" },
+  { id: 4, type: "payment_received", title: "Payment for API Integration", time: "5 days ago", status: "completed" }
+];
 
-  if (user.role === 'business_owner') {
-    // Fetch business owner's projects
-    const { data: projectsData } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false });
-    projects = projectsData || [];
+const mockProjects = [
+  {
+    id: 1,
+    title: "E-commerce Mobile App",
+    company: "TechStart Inc.",
+    status: "in_progress",
+    progress: 75,
+    deadline: "2024-02-15",
+    budget: "$15,000"
+  },
+  {
+    id: 2,
+    title: "AI Analytics Dashboard",
+    company: "DataFlow Solutions",
+    status: "pending",
+    progress: 0,
+    deadline: "2024-03-01",
+    budget: "$25,000"
+  },
+  {
+    id: 3,
+    title: "Blockchain DeFi Platform",
+    company: "CryptoVentures",
+    status: "completed",
+    progress: 100,
+    deadline: "2024-01-20",
+    budget: "$40,000"
+  }
+];
 
-    // Fetch project interests for business owner's projects
-    const { data: interestsData } = await supabase
-      .from('project_interests')
-      .select(`
-        *,
-        profiles!project_interests_engineer_id_fkey(full_name, headline, skills),
-        projects!project_interests_project_id_fkey(title)
-      `)
-      .eq('status', 'pending');
-    projectInterests = interestsData || [];
+export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [user] = useState(mockUser);
+  const [headerRef, headerInView] = useInView({ threshold: 0.1, triggerOnce: true });
+  const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
+  const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
+
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (user.role === 'engineer') {
-    // Fetch engineer's project interests
-    const { data: interestsData } = await supabase
-      .from('project_interests')
-      .select(`
-        *,
-        projects!project_interests_project_id_fkey(title, description, required_skills)
-      `)
-      .eq('engineer_id', user.id)
-      .order('created_at', { ascending: false });
-    projectInterests = interestsData || [];
-  }
+  const currentStats = user.role === 'engineer' ? mockStats.engineer : mockStats.business_owner;
 
-  // Fetch upcoming interviews for all users
-  const { data: interviewData } = await supabase
-    .from('interviews')
-    .select(`
-      *,
-      projects!interviews_project_id_fkey(title),
-      profiles!interviews_engineer_id_fkey(full_name),
-      profiles!interviews_owner_id_fkey(full_name)
-    `)
-    .or(`engineer_id.eq.${user.id},owner_id.eq.${user.id}`)
-    .eq('status', 'scheduled')
-    .order('scheduled_time', { ascending: true })
-    .limit(5);
-  interviews = interviewData || [];
-
-  // Calculate stats based on user role
-  if (user.role === 'business_owner') {
-    stats = {
-      totalProjects: projects?.length || 0,
-      activeProjects: projects?.filter(p => p.status === 'open').length || 0,
-      pendingInterests: projectInterests?.length || 0,
-      upcomingInterviews: interviews?.length || 0
-    };
-  } else if (user.role === 'engineer') {
-    stats = {
-      totalInterests: projectInterests?.length || 0,
-      pendingInterests: projectInterests?.filter(i => i.status === 'pending').length || 0,
-      acceptedInterests: projectInterests?.filter(i => i.status === 'accepted').length || 0,
-      upcomingInterviews: interviews?.length || 0
-    };
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays < 0) return 'Past due';
-    return `In ${diffDays} days`;
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'project_applied': return <FileText className="w-4 h-4" />;
+      case 'interview_scheduled': return <Calendar className="w-4 h-4" />;
+      case 'project_completed': return <CheckCircle className="w-4 h-4" />;
+      case 'payment_received': return <DollarSign className="w-4 h-4" />;
+      default: return <Activity className="w-4 h-4" />;
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-green-100 text-green-800';
-      case 'matching': return 'bg-blue-100 text-blue-800';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      case 'pending': return 'bg-orange-100 text-orange-800';
-      case 'accepted': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-green-500/10 text-green-600 border-green-500/20';
+      case 'in_progress': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 'pending': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+      case 'scheduled': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
+      default: return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Welcome Header */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.profile?.full_name || user.email}!
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Here&apos;s what&apos;s happening with your {user.role === 'business_owner' ? 'projects' : 'opportunities'} today.
-          </p>
-        </div>
+    <div className="min-h-screen bg-background">
+      {/* Animated background */}
+      <div className="absolute inset-0 animated-gradient opacity-5" />
+      
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <motion.div
+          ref={headerRef}
+          initial={{ opacity: 0, y: 30 }}
+          animate={headerInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8 }}
+          className="mb-12"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold gradient-text mb-2">
+                Welcome back, {user.name}!
+              </h1>
+              <p className="text-xl text-muted-foreground">
+                Here's what's happening with your {user.role === 'business_owner' ? 'projects' : 'opportunities'} today.
+              </p>
+            </div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="relative"
+            >
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 p-1">
+                <div className="w-full h-full rounded-full bg-muted flex items-center justify-center">
+                  <Users className="w-8 h-8 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-background" />
+            </motion.div>
+          </div>
+        </motion.div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {user.role === 'business_owner' ? (
+        {/* Stats Grid */}
+        <motion.div
+          ref={statsRef}
+          initial={{ opacity: 0, y: 30 }}
+          animate={statsInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
+        >
+          {user.role === 'engineer' ? (
             <>
-              <Card>
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                     <Briefcase className="h-4 w-4 mr-2" />
                     Total Projects
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{stats.totalProjects}</div>
-                  <p className="text-xs text-gray-500 mt-1">Your posted projects</p>
+                  <div className="text-3xl font-bold gradient-text">{currentStats.totalProjects}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Projects worked on</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Active Projects
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.activeProjects}</div>
-                  <p className="text-xs text-gray-500 mt-1">Currently open</p>
+                  <div className="text-3xl font-bold text-blue-600">{currentStats.activeProjects}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Currently working</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Pending Interests
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Total Earnings
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{stats.pendingInterests}</div>
-                  <p className="text-xs text-gray-500 mt-1">Awaiting review</p>
+                  <div className="text-3xl font-bold text-green-600">${currentStats.earnings.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Lifetime earnings</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Upcoming Interviews
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                    <Star className="h-4 w-4 mr-2" />
+                    Rating
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">{stats.upcomingInterviews}</div>
-                  <p className="text-xs text-gray-500 mt-1">Scheduled meetings</p>
+                  <div className="text-3xl font-bold text-yellow-600">{currentStats.rating}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{currentStats.reviews} reviews</p>
                 </CardContent>
               </Card>
             </>
           ) : (
             <>
-              <Card>
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                     <Briefcase className="h-4 w-4 mr-2" />
-                    Total Interests
+                    Total Projects
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{stats.totalInterests}</div>
-                  <p className="text-xs text-gray-500 mt-1">Projects you&apos;re interested in</p>
+                  <div className="text-3xl font-bold gradient-text">{currentStats.totalProjects}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Projects posted</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Pending Review
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Applications
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{stats.pendingInterests}</div>
-                  <p className="text-xs text-gray-500 mt-1">Awaiting response</p>
+                  <div className="text-3xl font-bold text-orange-600">{currentStats.pendingApplications}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Pending review</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Accepted
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Total Spent
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.acceptedInterests}</div>
-                  <p className="text-xs text-gray-500 mt-1">Successfully matched</p>
+                  <div className="text-3xl font-bold text-green-600">${currentStats.totalSpent.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground mt-1">On projects</p>
                 </CardContent>
               </Card>
-              
-              <Card>
+
+              <Card className="hover-lift glass border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Upcoming Interviews
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                    <Award className="h-4 w-4 mr-2" />
+                    Success Rate
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">{stats.upcomingInterviews}</div>
-                  <p className="text-xs text-gray-500 mt-1">Scheduled meetings</p>
+                  <div className="text-3xl font-bold text-purple-600">{currentStats.avgRating}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Average rating</p>
                 </CardContent>
               </Card>
             </>
           )}
-        </div>
+        </motion.div>
 
-        {/* Upcoming Interviews Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="h-5 w-5 mr-2" />
-              Upcoming Interviews
-            </CardTitle>
-            <CardDescription>
-              Your scheduled interviews and meetings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {interviews && interviews.length > 0 ? (
+        {/* Recent Activity */}
+        <motion.div
+          ref={activityRef}
+          initial={{ opacity: 0, y: 30 }}
+          animate={activityInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12"
+        >
+          <Card className="glass border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>Your latest actions and updates</CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
-                {interviews.map(interview => (
-                  <div key={interview.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                {mockRecentActivity.map((activity, index) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={activityInView ? { opacity: 1, x: 0 } : {}}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className={`p-2 rounded-full ${getStatusColor(activity.status)}`}>
+                      {getActivityIcon(activity.type)}
+                    </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">
-                        {interview.project?.title || 'Project'}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {user.role === 'engineer' 
-                          ? `with ${interview.owner?.full_name || 'Business Owner'}`
-                          : `with ${interview.engineer?.full_name || 'Engineer'}`
-                        }
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {interview.scheduled_time ? `${formatDate(interview.scheduled_time)} at ${new Date(interview.scheduled_time).toLocaleTimeString()}` : 'Not scheduled'}
-                      </p>
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                        Scheduled
-                      </Badge>
-                      {interview.meeting_link && (
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={interview.meeting_link} target="_blank">
-                            Join Meeting
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                    <Badge className={getStatusColor(activity.status)}>
+                      {activity.status}
+                    </Badge>
+                  </motion.div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg">No upcoming interviews</p>
-                <p className="text-sm">You&apos;re all caught up!</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Briefcase className="h-5 w-5 mr-2" />
+                Current Projects
+              </CardTitle>
+              <CardDescription>Your active project portfolio</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockProjects.map((project, index) => (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={activityInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="p-4 rounded-lg border border-border/50 hover:border-border transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{project.title}</h4>
+                      <Badge className={getStatusColor(project.status)}>
+                        {project.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">{project.company}</p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progress: {project.progress}%</span>
+                      <span className="font-medium gradient-text">{project.budget}</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 mt-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${project.progress}%` }}
+                      />
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            )}
-            <div className="mt-4">
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/interviews">View All Interviews</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Role-Specific Sections */}
-        {user.role === 'business_owner' && (
-          <>
-            {/* My Projects Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Briefcase className="h-5 w-5 mr-2" />
-                  Your Projects
-                </CardTitle>
-                <CardDescription>
-                  Manage your posted projects and review engineer interest
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {projects && projects.length > 0 ? (
-                  <div className="space-y-4">
-                    {projects.slice(0, 5).map(project => (
-                      <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">
-                            <Link href={`/projects/${project.id}`} className="hover:underline">
-                              {project.title}
-                            </Link>
-                          </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                            {project.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-3 ml-4">
-                          <Badge className={getStatusColor(project.status)}>
-                            {project.status.replace('_', ' ')}
-                          </Badge>
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/projects/${project.id}`}>View Details</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">No projects yet</p>
-                    <p className="text-sm">Start by posting your first project</p>
-                  </div>
-                )}
-                <div className="mt-4 flex space-x-3">
-                  <Button asChild className="flex-1">
-                    <Link href="/projects/create">Post New Project</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1">
-                    <Link href="/projects">View All Projects</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pending Interests Section */}
-            {projectInterests && projectInterests.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Users className="h-5 w-5 mr-2" />
-                    Pending Engineer Interest
-                  </CardTitle>
-                  <CardDescription>
-                    Engineers interested in your projects
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {projectInterests.slice(0, 3).map(interest => (
-                      <div key={interest.id} className="flex items-center justify-between p-4 border rounded-lg bg-orange-50">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">
-                            {interest.profiles?.full_name || 'Engineer'}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            Interested in: {interest.projects?.title || 'Project'}
-                          </p>
-                          {interest.profiles?.headline && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {interest.profiles.headline}
-                            </p>
-                          )}
-                        </div>
-                        <Button size="sm" asChild>
-                          <Link href={`/projects/${interest.project_id}`}>Review Interest</Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4">
-                    <Button asChild variant="outline" className="w-full">
-                      <Link href="/projects">View All Interests</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-
-        {/* Engineer Dashboard Section */}
-        {user.role === 'engineer' && (
-          <>
-            {/* Project Interests Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Briefcase className="h-5 w-5 mr-2" />
-                  Your Project Interests
-                </CardTitle>
-                <CardDescription>
-                  Track your project applications and responses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {projectInterests && projectInterests.length > 0 ? (
-                  <div className="space-y-4">
-                    {projectInterests.slice(0, 5).map(interest => (
-                      <div key={interest.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">
-                            {interest.projects?.title || 'Project'}
-                          </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                            {interest.projects?.description || 'No description available'}
-                          </p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Badge className={getStatusColor(interest.status)}>
-                              {interest.status}
-                            </Badge>
-                            <span className="text-xs text-gray-500">
-                              Applied {new Date(interest.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/projects/${interest.project_id}`}>View Project</Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">No project interests yet</p>
-                    <p className="text-sm">Start browsing projects to find opportunities</p>
-                  </div>
-                )}
-                <div className="mt-4">
-                  <Button asChild className="w-full">
-                    <Link href="/projects">Browse Projects</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Button asChild variant="outline" className="h-auto p-4 flex-col">
-                <Link href="/profile">
-                  <div className="text-lg mb-2">👤</div>
-                  <span className="font-medium">Update Profile</span>
-                  <span className="text-sm text-gray-500 mt-1">Keep your information current</span>
-                </Link>
-              </Button>
-              
-              {user.role === 'business_owner' && (
-                <Button asChild variant="outline" className="h-auto p-4 flex-col">
-                  <Link href="/projects/create">
-                    <div className="text-lg mb-2">🚀</div>
-                    <span className="font-medium">Post Project</span>
-                    <span className="text-sm text-gray-500 mt-1">Find the perfect engineer</span>
-                  </Link>
-                </Button>
-              )}
-              
-              {user.role === 'engineer' && (
-                <Button asChild variant="outline" className="h-auto p-4 flex-col">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          viewport={{ once: true }}
+        >
+          <Card className="glass border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Zap className="h-5 w-5 mr-2" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>Get things done faster</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <AnimatedButton animation="glow" className="h-auto p-6 flex-col space-y-2" asChild>
                   <Link href="/projects">
-                    <div className="text-lg mb-2">🔍</div>
-                    <span className="font-medium">Find Projects</span>
-                    <span className="text-sm text-gray-500 mt-1">Browse available opportunities</span>
+                    <Search className="w-6 h-6" />
+                    <span className="font-medium">Browse Projects</span>
                   </Link>
-                </Button>
-              )}
-              
-              <Button asChild variant="outline" className="h-auto p-4 flex-col">
-                <Link href="/interviews">
-                  <div className="text-lg mb-2">📅</div>
-                  <span className="font-medium">Manage Interviews</span>
-                  <span className="text-sm text-gray-500 mt-1">View and schedule meetings</span>
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                </AnimatedButton>
+                
+                <AnimatedButton animation="scale" className="h-auto p-6 flex-col space-y-2" asChild>
+                  <Link href="/engineers">
+                    <Users className="w-6 h-6" />
+                    <span className="font-medium">Find Engineers</span>
+                  </Link>
+                </AnimatedButton>
+                
+                <AnimatedButton animation="bounce" className="h-auto p-6 flex-col space-y-2" asChild>
+                  <Link href="/profile">
+                    <Settings className="w-6 h-6" />
+                    <span className="font-medium">Update Profile</span>
+                  </Link>
+                </AnimatedButton>
+                
+                <AnimatedButton animation="pulse" className="h-auto p-6 flex-col space-y-2" asChild>
+                  <Link href="/contact">
+                    <MessageSquare className="w-6 h-6" />
+                    <span className="font-medium">Get Support</span>
+                  </Link>
+                </AnimatedButton>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );
